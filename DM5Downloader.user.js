@@ -14,22 +14,6 @@
 
 (async function () {
     'use strict';
-
-    window.addEventListener('load', () => {
-        'use strict';
-
-        let bookCollection = document.querySelector('#detail-list-select-1');
-        if (bookCollection) {
-            let link = bookCollection.querySelectorAll('a');
-            let href = link[0].getAttribute('href');
-            let href2 = link[link.length - 1].getAttribute('href');
-
-            console.log(`DM5D - Book Collection: ${href2}`);
-        }
-    });
-
-    // DM5_COMIC_MNAME
-
     let addButton = AddDownloadButton();
     let imgList = GetAllImages();
 
