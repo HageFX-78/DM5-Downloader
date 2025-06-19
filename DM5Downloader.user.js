@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DM5-Downloader
 // @namespace    https://github.com/HageFX-78
-// @version      0.1
+// @version      1.0
 // @description  DM5 manga chapter downloader, batch download support in future
 // @author       HageFX78
 // @license      MIT
@@ -9,13 +9,18 @@
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=dm5.com
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js
+// @downloadURL  https://github.com/HageFX-78/DM5-Downloader/raw/refs/heads/main/DM5Downloader.user.js
+// @updateURL    https://github.com/HageFX-78/DM5-Downloader/raw/refs/heads/main/DM5Downloader.user.js
 // @grant        none
 // ==/UserScript==
 
 (async function () {
     'use strict';
+
+    if (!/^https:\/\/www\.dm5\.com\/m\d+\/$/.test(window.location.href)) return;
+
     let addButton = AddDownloadButton();
-    let imgList = GetAllImages();
+    let imgList = GetAllImages(addButton);
 
     imgList.then((images) => {
         addButton.style.display = 'block';
@@ -26,9 +31,9 @@
     });
 })();
 
-async function GetAllImages() {
+async function GetAllImages(addButton) {
     let imageList = [];
-
+    const loader = CreateLoadingBar(DM5_IMAGE_COUNT, addButton);
     for (let pg = 1; pg <= DM5_IMAGE_COUNT; pg++) {
         try {
             const params = new URLSearchParams({
@@ -48,7 +53,6 @@ async function GetAllImages() {
 
             eval(js); // This will define `d` in the global scope
             const imgUrl = d[0];
-            console.log(d); // Debugging line to check the content of `d`
 
             const imgBlob = await fetch(imgUrl).then((r) => r.blob());
 
@@ -59,7 +63,8 @@ async function GetAllImages() {
                 page: pg,
             });
 
-            console.log(`DM5D - Page ${pg} loaded`);
+            loader.update(pg);
+            // console.log(`DM5D - Page ${pg} loaded`);
         } catch (err) {
             console.error(`DM5D - Failed on page ${pg}:`, err);
         }
@@ -70,7 +75,7 @@ async function GetAllImages() {
 
 function DownloadAsZip(images) {
     const zip = new JSZip();
-    const folder = zip.folder(DM5_CTITLE); // New folder
+    const folder = zip.folder(DM5_CTITLE);
 
     for (const img of images) {
         const paddedName = String(img.page).padStart(3, '0') + '.' + img.ext;
@@ -84,28 +89,94 @@ function DownloadAsZip(images) {
 
 function AddDownloadButton() {
     const downloadButton = document.createElement('button');
-    downloadButton.textContent = 'Download Chapter';
-    downloadButton.style.position = 'fixed';
-    downloadButton.style.bottom = '20px';
-    downloadButton.style.fontSize = '24px';
-    downloadButton.style.left = '20px';
-    downloadButton.style.zIndex = '1000';
-    downloadButton.style.padding = '10px 20px';
-    downloadButton.style.backgroundColor = '#03c2fc';
-    downloadButton.style.color = 'white';
-    downloadButton.style.border = 'none';
-    downloadButton.style.display = 'none'; // Initially hidde
-    downloadButton.style.cursor = 'pointer';
+    Object.assign(downloadButton.style, {
+        padding: '10px 20px',
+        backgroundColor: '#f10534',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '5px',
+
+        cursor: 'pointer',
+        fontSize: '14px',
+        zIndex: 1000,
+        display: 'none', // Initially hidden
+    });
+    downloadButton.textContent = 'Download / 下载';
 
     //on hover
     downloadButton.addEventListener('mouseover', () => {
-        downloadButton.style.backgroundColor = '#0299c2';
+        downloadButton.style.backgroundColor = '#d1042a';
     });
     downloadButton.addEventListener('mouseout', () => {
-        downloadButton.style.backgroundColor = '#03c2fc';
+        downloadButton.style.backgroundColor = '#f10534';
     });
 
-    document.body.appendChild(downloadButton);
-
     return downloadButton;
+}
+
+function CreateLoadingBar(totalPages, downloadButton) {
+    const wrapper = document.createElement('div');
+    const container = document.createElement('div');
+    const bar = document.createElement('div');
+    const text = document.createElement('span');
+
+    // Flex wrapper for centering both button and bar
+    Object.assign(wrapper.style, {
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: '16px',
+        margin: '16px',
+        zIndex: 1000,
+    });
+
+    // Progress bar container
+    Object.assign(container.style, {
+        position: 'relative',
+        width: '600px',
+        height: '30px',
+        backgroundColor: '#454545',
+        borderRadius: '5px',
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddding: '10px',
+    });
+
+    Object.assign(bar.style, {
+        height: '100%',
+        width: '0%',
+        backgroundColor: '#f10534',
+        transition: 'width 0.2s',
+    });
+
+    Object.assign(text.style, {
+        position: 'absolute',
+        width: '100%',
+        textAlign: 'center',
+        fontSize: '14px',
+        color: 'white',
+        zIndex: 1002,
+    });
+
+    container.appendChild(bar);
+    container.appendChild(text);
+    wrapper.appendChild(container);
+    wrapper.appendChild(downloadButton);
+
+    // Insert wrapper after .view-paging
+    const pagingElement = document.querySelector('.view-paging');
+    pagingElement.after(wrapper);
+
+    return {
+        update: (current) => {
+            const percent = Math.round((current / totalPages) * 100);
+            bar.style.width = percent + '%';
+            text.textContent = `Loading Images... (${current}/${totalPages})`;
+        },
+        remove: () => {
+            wrapper.remove();
+        },
+    };
 }
