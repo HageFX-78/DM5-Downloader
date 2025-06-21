@@ -2,7 +2,7 @@
 // @name         DM5-Downloader
 // @namespace    https://github.com/HageFX-78
 // @version      1.1
-// @description  DM5 manga chapter downloader, batch download support in future
+// @description  DM5 manga chapter downloader, batch download supported through popup tabs.
 // @author       HageFX78
 // @license      MIT
 // @match        *://*.dm5.com/m*
