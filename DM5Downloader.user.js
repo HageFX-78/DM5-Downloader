@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DM5-Downloader
 // @namespace    https://github.com/HageFX-78
-// @version      1.1
+// @version      1.2
 // @description  DM5 manga downloader, batch download supported through popup tabs.
 // @author       HageFX78
 // @license      MIT
@@ -22,17 +22,27 @@
 
     // Main manga/amnhua page
     if (!/^https:\/\/www\.dm5\.com\/m\d+(\/)?(\?.*)?$/.test(window.location.href)) {
-        let addButton = AddDownloadAllButton();
+        InsertIndexInfo();
+
+        let UI_ELEMENTS = await AddDownloaderBlock();
+        let addButton = UI_ELEMENTS[0];
+        let startInput = UI_ELEMENTS[1];
+        let endInput = UI_ELEMENTS[2];
+
         let pageUrls = await GetPageURLs();
 
         addButton.addEventListener('click', async () => {
             let blockedCount = 0;
 
-            pageUrls.forEach((url, i) => {
-                const popup = window.open(url + '?autodl=true', `_blank`);
+            let startIndex = parseInt(startInput.value) || 0;
+            let endIndex = parseInt(endInput.value) || pageUrls.length - 1;
+
+            for (let i = startIndex; i <= endIndex; i++) {
+                let pageUrl = pageUrls[i];
+                const popup = window.open(pageUrl + '?autodl=true', `_blank`);
 
                 if (!popup) blockedCount++;
-            });
+            }
 
             if (blockedCount > 0) {
                 // defer alert to let popups finish loading
@@ -52,7 +62,7 @@
         imgList.then(async (images) => {
             if (autoDownload) {
                 await DownloadAsZip(images);
-                await new Promise((resolve) => setTimeout(resolve, 1000)); // Allow download to start
+                await new Promise((resolve) => setTimeout(resolve, 2000)); // Allow download to start
                 window.close();
             } else {
                 addButton.style.display = 'block';
@@ -64,11 +74,27 @@
     }
 })();
 
-async function GetPageURLs(startIndex = 0, count = 1) {
+async function GetPageURLs() {
     let mangaElements = document.querySelectorAll('.view-win-list a');
     let urlEnds = Array.from(mangaElements).map((el) => 'https://www.dm5.com' + el.getAttribute('href'));
 
     return urlEnds;
+}
+
+async function InsertIndexInfo() {
+    let chapterA = document.querySelectorAll('.view-win-list a');
+
+    if (chapterA.length === 0) {
+        console.warn('DM5D - No chapter span found, skipping index info insertion.');
+        return;
+    }
+
+    let startIndex = 0;
+    chapterA.forEach((a) => {
+        const extraText = document.createTextNode(`[ ${startIndex} ] - `);
+        a.insertBefore(extraText, a.firstChild);
+        startIndex++;
+    });
 }
 
 async function GetAllImages(addButton) {
@@ -122,8 +148,8 @@ function DownloadAsZip(images) {
         folder.file(paddedName, img.blob);
     }
 
-    zip.generateAsync({ type: 'blob' }).then((content) => {
-        saveAs(content, `${DM5_CTITLE}.zip`); // Requires FileSaver.js
+    return zip.generateAsync({ type: 'blob' }).then((content) => {
+        saveAs(content, `${DM5_CTITLE}.zip`);
     });
 }
 
@@ -153,7 +179,7 @@ function AddDownloadButton() {
     return downloadButton;
 }
 
-function AddDownloadAllButton() {
+async function AddDownloaderBlock() {
     const container = document.createElement('div');
     Object.assign(container.style, {
         width: '100%',
@@ -162,6 +188,39 @@ function AddDownloadAllButton() {
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
+    });
+
+    const selectorTextBoxes = document.createElement('div');
+    Object.assign(selectorTextBoxes.style, {
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '8px',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+    });
+
+    // Start index input
+    const startInput = document.createElement('input');
+    startInput.placeholder = 'Start / 开始';
+    Object.assign(startInput.style, {
+        padding: '10px',
+        border: '1px solid #ccc',
+        borderRadius: '2px',
+        fontSize: '14px',
+        width: '140px',
+        boxSizing: 'border-box',
+    });
+
+    // Length input
+    const endInput = document.createElement('input');
+    endInput.placeholder = 'End / 结尾';
+    Object.assign(endInput.style, {
+        padding: '10px',
+        border: '1px solid #ccc',
+        borderRadius: '2px',
+        fontSize: '14px',
+        width: '140px',
+        boxSizing: 'border-box',
     });
 
     const downloadButton = document.createElement('button');
@@ -173,22 +232,13 @@ function AddDownloadAllButton() {
         borderRadius: '2px',
         cursor: 'pointer',
         fontSize: '14px',
-        right: '16px',
-        margin: '16px',
         zIndex: 1000,
-        position: 'relative',
-        alignSelf: 'flex-end',
-        width: 'fit-content',
         display: 'block',
+        whiteSpace: 'nowrap',
     });
-    downloadButton.textContent = 'Download All/ 下载';
+    downloadButton.textContent = 'Download All / 下载';
 
-    container.appendChild(downloadButton);
-
-    let chapterContainer = document.querySelector('#chapterlistload');
-    chapterContainer.before(container);
-
-    //on hover
+    // Hover effect
     downloadButton.addEventListener('mouseover', () => {
         downloadButton.style.backgroundColor = '#d1042a';
     });
@@ -196,7 +246,16 @@ function AddDownloadAllButton() {
         downloadButton.style.backgroundColor = '#f10534';
     });
 
-    return downloadButton;
+    // Assemble
+    selectorTextBoxes.appendChild(startInput);
+    selectorTextBoxes.appendChild(endInput);
+    selectorTextBoxes.appendChild(downloadButton);
+    container.appendChild(selectorTextBoxes);
+
+    let chapterContainer = document.querySelector('#chapterlistload');
+    chapterContainer.before(container);
+
+    return [downloadButton, startInput, endInput];
 }
 
 function CreateLoadingBar(totalPages, downloadButton) {

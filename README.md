@@ -8,6 +8,7 @@ This is a simple userscript that adds a download button for individual manga/man
 
 ## Update
 
+-   v1.2 : Added range text fields to select chapters to download with index.
 -   v1.1 : Added batch download through workaround (requires browser popup enabled while using)
 
 ## Single Chapter Download
@@ -17,6 +18,10 @@ This is a simple userscript that adds a download button for individual manga/man
 ## Batch Download
 
 ## ![demo](https://github.com/HageFX-78/DM5-Downloader/blob/main/demo/batchdemo.gif)
+
+## Select Download Range with Index
+
+## ![demo](https://github.com/HageFX-78/DM5-Downloader/blob/main/demo/selectiondemo.gif)
 
 ## ~~Why is there no batch download?~~
 
