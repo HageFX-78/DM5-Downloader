@@ -1,4 +1,4 @@
-# DM5 Chapter Downloader
+# DM5 Downloader
 
 [Click here](https://github.com/HageFX-78/DM5-Downloader/raw/refs/heads/main/DM5Downloader.user.js) to quick install (If you already have a userscript manager).
 
