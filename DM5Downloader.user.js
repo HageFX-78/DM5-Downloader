@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         DM5-Downloader
 // @namespace    https://github.com/HageFX-78
-// @version      1.0
+// @version      1.1
 // @description  DM5 manga chapter downloader, batch download support in future
 // @author       HageFX78
 // @license      MIT
@@ -17,19 +17,59 @@
 (async function () {
     'use strict';
 
-    if (!/^https:\/\/www\.dm5\.com\/m\d+\/$/.test(window.location.href)) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoDownload = urlParams.get('autodl') === 'true';
 
-    let addButton = AddDownloadButton();
-    let imgList = GetAllImages(addButton);
-
-    imgList.then((images) => {
-        addButton.style.display = 'block';
+    // Main manga/amnhua page
+    if (!/^https:\/\/www\.dm5\.com\/m\d+(\/)?(\?.*)?$/.test(window.location.href)) {
+        let addButton = AddDownloadAllButton();
+        let pageUrls = await GetPageURLs();
 
         addButton.addEventListener('click', async () => {
-            await DownloadAsZip(images);
+            let blockedCount = 0;
+
+            pageUrls.forEach((url, i) => {
+                const popup = window.open(url + '?autodl=true', `_blank`);
+
+                if (!popup) blockedCount++;
+            });
+
+            if (blockedCount > 0) {
+                // defer alert to let popups finish loading
+                setTimeout(() => {
+                    alert(
+                        `[ DM5 Downloader ]\n\n Popup was blocked! ${blockedCount} download blocked!\n\nPlease allow pop-ups for this site in your browser setting to enable batch downloading. Remember to turn it off after use.
+                        \n\n弹出窗口被浏览器拦截了！共有 ${blockedCount} 个下载被阻止！\n\n请在浏览器设置中允许此网站的弹出窗口，以启用批量下载功能。使用完成后，记得关闭该设置以保证浏览安全。`,
+                    );
+                }, 500);
+            }
         });
-    });
+    } else {
+        // Chapter page
+        let addButton = AddDownloadButton();
+        let imgList = GetAllImages(addButton);
+
+        imgList.then(async (images) => {
+            if (autoDownload) {
+                await DownloadAsZip(images);
+                await new Promise((resolve) => setTimeout(resolve, 1000)); // Allow download to start
+                window.close();
+            } else {
+                addButton.style.display = 'block';
+                addButton.addEventListener('click', async () => {
+                    await DownloadAsZip(images);
+                });
+            }
+        });
+    }
 })();
+
+async function GetPageURLs(startIndex = 0, count = 1) {
+    let mangaElements = document.querySelectorAll('.view-win-list a');
+    let urlEnds = Array.from(mangaElements).map((el) => 'https://www.dm5.com' + el.getAttribute('href'));
+
+    return urlEnds;
+}
 
 async function GetAllImages(addButton) {
     let imageList = [];
@@ -94,14 +134,59 @@ function AddDownloadButton() {
         backgroundColor: '#f10534',
         color: '#fff',
         border: 'none',
-        borderRadius: '5px',
-
+        borderRadius: '2px',
         cursor: 'pointer',
         fontSize: '14px',
         zIndex: 1000,
         display: 'none', // Initially hidden
     });
     downloadButton.textContent = 'Download / 下载';
+
+    //on hover
+    downloadButton.addEventListener('mouseover', () => {
+        downloadButton.style.backgroundColor = '#d1042a';
+    });
+    downloadButton.addEventListener('mouseout', () => {
+        downloadButton.style.backgroundColor = '#f10534';
+    });
+
+    return downloadButton;
+}
+
+function AddDownloadAllButton() {
+    const container = document.createElement('div');
+    Object.assign(container.style, {
+        width: '100%',
+        height: 'auto',
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+    });
+
+    const downloadButton = document.createElement('button');
+    Object.assign(downloadButton.style, {
+        padding: '10px 20px',
+        backgroundColor: '#f10534',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '2px',
+        cursor: 'pointer',
+        fontSize: '14px',
+        right: '16px',
+        margin: '16px',
+        zIndex: 1000,
+        position: 'relative',
+        alignSelf: 'flex-end',
+        width: 'fit-content',
+        display: 'block',
+    });
+    downloadButton.textContent = 'Download All/ 下载';
+
+    container.appendChild(downloadButton);
+
+    let chapterContainer = document.querySelector('#chapterlistload');
+    chapterContainer.before(container);
 
     //on hover
     downloadButton.addEventListener('mouseover', () => {
